@@ -51,6 +51,7 @@ app:
 
 auth:
   moderator-emails: ${MODERATOR_EMAILS:}
+  admin-emails: ${ADMIN_EMAILS:}
 
 jwt:
   issuer: ${JWT_ISSUER:ecotrace-api}

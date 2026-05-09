@@ -42,9 +42,14 @@ The API is at `http://localhost:8080`.
 | `POST /collections/{id}/reject` | Reject a submitted collection — releases the pin back to `ACTIVE`. **Moderator only.** |
 | `GET /leaderboard?scope=GLOBAL\|WEEKLY\|MONTHLY&limit=20` | Top-N leaderboard from Redis sorted sets, plus the viewer's own rank |
 | `GET /me/stream` | SSE stream of user-scoped events (`points.awarded`, `collection.verified`, `collection.rejected`) |
+| `GET /admin/users?email=…` | Look up a user + their roles. **Admin only.** |
+| `POST /admin/users/{id}/roles` | Grant a role (`MODERATOR`); ADMIN cannot be granted via API. **Admin only.** |
+| `DELETE /admin/users/{id}/roles/{role}` | Revoke a role; cannot revoke your own ADMIN. **Admin only.** |
 | `GET /actuator/health` | Liveness/readiness |
 
-Roles live in the `user_roles` table (`MODERATOR`, `ADMIN`); `USER` is implicit. Emails listed in `auth.moderator-emails` (env var `MODERATOR_EMAILS`, comma-separated) act as a one-time *bootstrap allowlist* — on first login, a matching user is auto-granted `MODERATOR` in DB. After that, the DB row is authoritative; removing the email from the allowlist does not revoke the role.
+Roles live in the `user_roles` table (`MODERATOR`, `ADMIN`); `USER` is implicit. Emails listed in `auth.moderator-emails` (env var `MODERATOR_EMAILS`) and `auth.admin-emails` (env var `ADMIN_EMAILS`) act as one-time *bootstrap allowlists* — on first login, a matching user is auto-granted the corresponding DB role. After that, the DB row is authoritative; removing the email from the allowlist does not revoke the role.
+
+`MODERATOR` can be granted/revoked via the `/admin/users/...` endpoints. `ADMIN` cannot — the only path is the bootstrap allowlist (and self-revoke is blocked), so you can't accidentally lock yourself out of the admin surface.
 
 ## Running tests
 
@@ -110,6 +115,6 @@ Module folders (`profile/`, `collection/`, `gamification/`, …) exist as empty 
 
 ## Next milestones
 
-- Admin endpoints to grant/revoke roles (today the only path is direct SQL or the bootstrap allowlist).
 - Multi-replica SSE: today the emitter registry is in-process; needs a Redis pub/sub fanout for HA.
 - Weekly/monthly leaderboard rollover/snapshot if you want history; today the keys auto-expire after 14d/62d.
+- Audit log for role grants/revokes (currently only `granted_by` is captured, not the full event history).

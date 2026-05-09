@@ -71,9 +71,45 @@ class AuthServiceRolesTest {
         assertThat(svc.rolesFor(u)).containsExactlyInAnyOrder("USER", "ADMIN");
     }
 
+    @Test
+    void admin_allowlisted_user_is_bootstrapped() {
+        AuthService svc = newService(List.of(), List.of("ROOT@Example.COM"));
+        User u = user("root@example.com");
+        when(userRoles.rolesFor(u.getId())).thenReturn(EnumSet.noneOf(RoleName.class));
+        when(userRoles.grantIfMissing(u.getId(), RoleName.ADMIN, null)).thenReturn(true);
+
+        assertThat(svc.rolesFor(u)).containsExactlyInAnyOrder("USER", "ADMIN");
+        verify(userRoles, times(1)).grantIfMissing(u.getId(), RoleName.ADMIN, null);
+    }
+
+    @Test
+    void user_in_both_allowlists_is_granted_both_roles() {
+        AuthService svc = newService(List.of("super@example.com"), List.of("super@example.com"));
+        User u = user("super@example.com");
+        when(userRoles.rolesFor(u.getId())).thenReturn(EnumSet.noneOf(RoleName.class));
+        when(userRoles.grantIfMissing(u.getId(), RoleName.MODERATOR, null)).thenReturn(true);
+        when(userRoles.grantIfMissing(u.getId(), RoleName.ADMIN, null)).thenReturn(true);
+
+        assertThat(svc.rolesFor(u)).containsExactlyInAnyOrder("USER", "MODERATOR", "ADMIN");
+    }
+
+    @Test
+    void admin_allowlisted_with_existing_DB_role_skips_grant() {
+        AuthService svc = newService(List.of(), List.of("root@example.com"));
+        User u = user("root@example.com");
+        when(userRoles.rolesFor(u.getId())).thenReturn(EnumSet.of(RoleName.ADMIN));
+
+        assertThat(svc.rolesFor(u)).containsExactlyInAnyOrder("USER", "ADMIN");
+        verify(userRoles, never()).grantIfMissing(any(), eq(RoleName.ADMIN), any());
+    }
+
     private AuthService newService(List<String> moderatorEmails) {
+        return newService(moderatorEmails, List.of());
+    }
+
+    private AuthService newService(List<String> moderatorEmails, List<String> adminEmails) {
         return new AuthService(null, null, null, null, null, null,
-                new AuthProperties(moderatorEmails), userRoles);
+                new AuthProperties(moderatorEmails, adminEmails), userRoles);
     }
 
     private static User user(String email) {

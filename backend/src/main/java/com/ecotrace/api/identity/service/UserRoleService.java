@@ -43,4 +43,9 @@ public class UserRoleService {
             return false;
         }
     }
+
+    @Transactional
+    public boolean revoke(UUID userId, RoleName role) {
+        return roles.deleteByUserIdAndRole(userId, role) > 0;
+    }
 }

@@ -169,19 +169,23 @@ public class AuthService {
     Set<String> rolesFor(User user) {
         Set<RoleName> dbRoles = userRoles.rolesFor(user.getId());
 
-        boolean allowlisted = authProps.moderatorEmails().stream()
-                .anyMatch(e -> e.equalsIgnoreCase(user.getEmail()));
-        if (allowlisted && !dbRoles.contains(RoleName.MODERATOR)) {
-            // Bootstrap: first login from a configured email — promote to DB role.
-            if (userRoles.grantIfMissing(user.getId(), RoleName.MODERATOR, null)) {
-                dbRoles.add(RoleName.MODERATOR);
-            }
-        }
+        bootstrapFromAllowlist(user, authProps.moderatorEmails(), RoleName.MODERATOR, dbRoles);
+        bootstrapFromAllowlist(user, authProps.adminEmails(), RoleName.ADMIN, dbRoles);
 
         Set<String> result = new HashSet<>();
         result.add("USER");
         for (RoleName r : dbRoles) result.add(r.name());
         return result;
+    }
+
+    private void bootstrapFromAllowlist(User user, java.util.List<String> emails, RoleName role, Set<RoleName> dbRoles) {
+        boolean allowlisted = emails.stream().anyMatch(e -> e.equalsIgnoreCase(user.getEmail()));
+        if (allowlisted && !dbRoles.contains(role)) {
+            // Bootstrap: first login from a configured email — promote to DB role.
+            if (userRoles.grantIfMissing(user.getId(), role, null)) {
+                dbRoles.add(role);
+            }
+        }
     }
 
     private UserResponse toResponse(User u) {

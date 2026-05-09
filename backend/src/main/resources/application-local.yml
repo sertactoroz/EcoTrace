@@ -23,6 +23,8 @@ oauth2:
 auth:
   moderator-emails:
     - sertactoroz@gmail.com
+  admin-emails:
+    - sertactoroz@gmail.com
 
 storage:
   bucket: ecotrace-media-local
