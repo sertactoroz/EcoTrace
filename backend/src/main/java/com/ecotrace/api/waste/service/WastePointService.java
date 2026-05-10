@@ -4,6 +4,7 @@ import com.ecotrace.api.common.error.BusinessException;
 import com.ecotrace.api.common.error.ErrorCode;
 import com.ecotrace.api.common.util.GeoHashUtil;
 import com.ecotrace.api.waste.api.ClaimedPin;
+import com.ecotrace.api.waste.api.PinLocation;
 import com.ecotrace.api.waste.api.PinPointsContext;
 import com.ecotrace.api.waste.api.WastePointFacade;
 import com.ecotrace.api.waste.dto.request.CreateWastePointRequest;
@@ -135,6 +136,15 @@ public class WastePointService implements WastePointFacade {
                 cat.getPointsMultiplier(),
                 wp.getEstimatedVolume() == null ? null : wp.getEstimatedVolume().name(),
                 wp.getReportedByUserId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PinLocation getLocation(UUID pinId) {
+        WastePoint wp = wastePoints.findById(pinId)
+                .orElseThrow(() -> new WastePointNotFoundException(pinId));
+        Point loc = wp.getLocation();
+        return new PinLocation(loc.getY(), loc.getX());
     }
 
     @Override

@@ -80,6 +80,12 @@ gamification:
     MEDIUM: 1.5
     LARGE: 2.0
 
+fraud:
+  max-distance-m: ${FRAUD_MAX_DISTANCE_M:50}
+  min-dwell-seconds: ${FRAUD_MIN_DWELL_SECONDS:30}
+  max-collections-per-hour: ${FRAUD_MAX_COLLECTIONS_PER_HOUR:10}
+  require-after-photo: ${FRAUD_REQUIRE_AFTER_PHOTO:true}
+
 storage:
   bucket: ${S3_BUCKET:ecotrace-media-local}
   region: ${S3_REGION:us-east-1}

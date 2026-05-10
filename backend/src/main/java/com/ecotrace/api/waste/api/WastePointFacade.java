@@ -11,6 +11,8 @@ public interface WastePointFacade {
 
     PinPointsContext getPointsContext(UUID pinId);
 
+    PinLocation getLocation(UUID pinId);
+
     void markVerified(UUID pinId, UUID collectionId);
 
     void markRejected(UUID pinId);

@@ -11,17 +11,23 @@ import com.ecotrace.api.collection.event.CollectionClaimed;
 import com.ecotrace.api.collection.event.CollectionRejected;
 import com.ecotrace.api.collection.event.CollectionSubmitted;
 import com.ecotrace.api.collection.event.CollectionVerified;
+import com.ecotrace.api.collection.domain.FraudGate;
+import com.ecotrace.api.collection.domain.GeoDistance;
 import com.ecotrace.api.collection.repository.CollectionEvidenceRepository;
 import com.ecotrace.api.collection.repository.CollectionRepository;
 import com.ecotrace.api.common.error.BusinessException;
 import com.ecotrace.api.common.error.ErrorCode;
+import com.ecotrace.api.config.properties.FraudProperties;
 import com.ecotrace.api.gamification.api.PointsApi;
 import com.ecotrace.api.gamification.api.PointsAward;
 import com.ecotrace.api.media.api.MediaUrlResolver;
 import com.ecotrace.api.waste.api.ClaimedPin;
+import com.ecotrace.api.waste.api.PinLocation;
 import com.ecotrace.api.waste.api.PinPointsContext;
 import com.ecotrace.api.waste.api.WastePointFacade;
 import jakarta.persistence.EntityNotFoundException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -48,19 +54,24 @@ public class CollectionService {
     private final MediaUrlResolver media;
     private final PointsApi points;
     private final ApplicationEventPublisher events;
+    private final FraudProperties fraudConfig;
+    private final FraudGate fraudGate;
 
     public CollectionService(CollectionRepository collections,
                              CollectionEvidenceRepository evidence,
                              WastePointFacade wastePoints,
                              MediaUrlResolver media,
                              PointsApi points,
-                             ApplicationEventPublisher events) {
+                             ApplicationEventPublisher events,
+                             FraudProperties fraudConfig) {
         this.collections = collections;
         this.evidence = evidence;
         this.wastePoints = wastePoints;
         this.media = media;
         this.points = points;
         this.events = events;
+        this.fraudConfig = fraudConfig;
+        this.fraudGate = new FraudGate(fraudConfig);
     }
 
     @Transactional
@@ -105,6 +116,12 @@ public class CollectionService {
             Point p = GEO.createPoint(new Coordinate(req.collectorLongitude(), req.collectorLatitude()));
             p.setSRID(4326);
             c.setCollectorLocation(p);
+
+            PinLocation pin = wastePoints.getLocation(c.getWastePointId());
+            double meters = GeoDistance.haversineMeters(
+                    pin.latitude(), pin.longitude(),
+                    req.collectorLatitude(), req.collectorLongitude());
+            c.setDistanceFromPinM(BigDecimal.valueOf(meters).setScale(2, RoundingMode.HALF_UP));
         }
         c = collections.save(c);
         UUID savedId = c.getId();
@@ -137,6 +154,19 @@ public class CollectionService {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "Cannot verify (status=" + c.getStatus() + ")");
         }
+
+        List<CollectionEvidence> evidenceRows = evidence.findByCollectionId(collectionId);
+        OffsetDateTime velocityWindow = OffsetDateTime.now().minusHours(1);
+        long recentSubmissions = collections.countByCollectorUserIdAndSubmittedAtAfter(
+                c.getCollectorUserId(), velocityWindow);
+        // Don't count this submission against itself.
+        long otherSubmissions = c.getSubmittedAt() != null && c.getSubmittedAt().isAfter(velocityWindow)
+                ? Math.max(0, recentSubmissions - 1)
+                : recentSubmissions;
+        fraudGate.evaluate(c, evidenceRows, otherSubmissions).ifPresent(failure -> {
+            throw new BusinessException(ErrorCode.FRAUD_GATE_FAILED,
+                    failure.reason().name() + ": " + failure.detail());
+        });
 
         PinPointsContext ctx = wastePoints.getPointsContext(c.getWastePointId());
         PointsAward award = points.awardForCollection(
