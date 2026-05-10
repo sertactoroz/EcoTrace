@@ -6,9 +6,10 @@ import java.time.Duration;
 import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 class PointsAwardedListener {
@@ -21,7 +22,7 @@ class PointsAwardedListener {
         this.redis = redis;
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(PointsAwarded event) {
         if (event.delta() == 0) return;
 

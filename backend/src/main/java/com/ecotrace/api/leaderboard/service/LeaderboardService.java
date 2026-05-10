@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class LeaderboardService {
 
+    private static final int MAX_LIMIT = 100;
+
     private final StringRedisTemplate redis;
     private final UserDirectory userDirectory;
 
@@ -25,19 +27,32 @@ public class LeaderboardService {
         this.userDirectory = userDirectory;
     }
 
-    public LeaderboardResponse top(LeaderboardScope scope, int limit, UUID viewerId) {
-        int safeLimit = Math.max(1, Math.min(limit, 100));
+    public LeaderboardResponse top(LeaderboardScope scope, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, MAX_LIMIT));
         String key = LeaderboardKeys.resolve(scope, LeaderboardKeys.today());
 
         Set<ZSetOperations.TypedTuple<String>> tuples =
                 redis.opsForZSet().reverseRangeWithScores(key, 0, safeLimit - 1L);
-        List<LeaderboardEntryResponse> entries = hydrate(tuples);
+        return new LeaderboardResponse(scope, hydrate(tuples));
+    }
 
-        LeaderboardEntryResponse me = null;
-        if (viewerId != null) {
-            me = lookupMe(key, viewerId);
-        }
-        return new LeaderboardResponse(scope, entries, me);
+    public LeaderboardEntryResponse me(LeaderboardScope scope, UUID viewerId) {
+        if (viewerId == null) return null;
+        String key = LeaderboardKeys.resolve(scope, LeaderboardKeys.today());
+        String member = viewerId.toString();
+        Long rank = redis.opsForZSet().reverseRank(key, member);
+        Double score = redis.opsForZSet().score(key, member);
+        if (rank == null || score == null) return null;
+
+        Map<UUID, UserSummary> summaries = userDirectory.getSummaries(List.of(viewerId));
+        UserSummary s = summaries.get(viewerId);
+        return new LeaderboardEntryResponse(
+                rank + 1L,
+                viewerId,
+                s != null ? s.displayName() : null,
+                s != null ? s.avatarUrl() : null,
+                s != null ? s.level() : 0,
+                score.longValue());
     }
 
     private List<LeaderboardEntryResponse> hydrate(Set<ZSetOperations.TypedTuple<String>> tuples) {
@@ -68,22 +83,5 @@ public class LeaderboardService {
                     scores.get(i)));
         }
         return out;
-    }
-
-    private LeaderboardEntryResponse lookupMe(String key, UUID viewerId) {
-        String member = viewerId.toString();
-        Long rank = redis.opsForZSet().reverseRank(key, member);
-        Double score = redis.opsForZSet().score(key, member);
-        if (rank == null || score == null) return null;
-
-        Map<UUID, UserSummary> summaries = userDirectory.getSummaries(List.of(viewerId));
-        UserSummary s = summaries.get(viewerId);
-        return new LeaderboardEntryResponse(
-                rank + 1L,
-                viewerId,
-                s != null ? s.displayName() : null,
-                s != null ? s.avatarUrl() : null,
-                s != null ? s.level() : 0,
-                score.longValue());
     }
 }

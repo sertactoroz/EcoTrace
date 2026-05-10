@@ -6,6 +6,7 @@ import com.ecotrace.api.gamification.event.PointsAwarded;
 import com.ecotrace.api.identity.api.UserDirectory;
 import com.ecotrace.api.identity.api.UserSummary;
 import com.ecotrace.api.leaderboard.api.LeaderboardScope;
+import com.ecotrace.api.leaderboard.dto.response.LeaderboardEntryResponse;
 import com.ecotrace.api.leaderboard.dto.response.LeaderboardResponse;
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -75,7 +76,7 @@ class LeaderboardIntegrationTest {
         listener.on(award(bob, 80, 80));
         listener.on(award(carol, 20, 20));
 
-        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 10, alice);
+        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 10);
 
         assertThat(top.entries()).hasSize(3);
         assertThat(top.entries().get(0).userId()).isEqualTo(bob);
@@ -86,10 +87,11 @@ class LeaderboardIntegrationTest {
         assertThat(top.entries().get(1).userId()).isEqualTo(alice);
         assertThat(top.entries().get(2).userId()).isEqualTo(carol);
 
-        assertThat(top.me()).isNotNull();
-        assertThat(top.me().userId()).isEqualTo(alice);
-        assertThat(top.me().rank()).isEqualTo(2L);
-        assertThat(top.me().points()).isEqualTo(50L);
+        LeaderboardEntryResponse me = service.me(LeaderboardScope.GLOBAL, alice);
+        assertThat(me).isNotNull();
+        assertThat(me.userId()).isEqualTo(alice);
+        assertThat(me.rank()).isEqualTo(2L);
+        assertThat(me.points()).isEqualTo(50L);
     }
 
     @Test
@@ -100,10 +102,10 @@ class LeaderboardIntegrationTest {
         listener.on(award(user, 30, 30));   // first award: total 30
         listener.on(award(user, 25, 55));   // second: total 55, delta 25
 
-        LeaderboardResponse global = service.top(LeaderboardScope.GLOBAL, 10, null);
+        LeaderboardResponse global = service.top(LeaderboardScope.GLOBAL, 10);
         assertThat(global.entries().get(0).points()).isEqualTo(55L);
 
-        LeaderboardResponse weekly = service.top(LeaderboardScope.WEEKLY, 10, null);
+        LeaderboardResponse weekly = service.top(LeaderboardScope.WEEKLY, 10);
         // Two awards, deltas 30 + 25 → 55 (sum)
         assertThat(weekly.entries().get(0).points()).isEqualTo(55L);
     }
@@ -115,7 +117,7 @@ class LeaderboardIntegrationTest {
 
         listener.on(award(user, 0, 0));
 
-        LeaderboardResponse global = service.top(LeaderboardScope.GLOBAL, 10, null);
+        LeaderboardResponse global = service.top(LeaderboardScope.GLOBAL, 10);
         assertThat(global.entries()).isEmpty();
     }
 
@@ -127,7 +129,7 @@ class LeaderboardIntegrationTest {
             listener.on(award(id, 10 + i, 10 + i));
         }
 
-        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 2, null);
+        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 2);
         assertThat(top.entries()).hasSize(2);
         assertThat(top.entries().get(0).points()).isEqualTo(14L);
         assertThat(top.entries().get(1).points()).isEqualTo(13L);
@@ -140,10 +142,11 @@ class LeaderboardIntegrationTest {
         directory.put(alice, "Alice", 1);
         listener.on(award(alice, 40, 40));
 
-        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 10, stranger);
-
+        LeaderboardResponse top = service.top(LeaderboardScope.GLOBAL, 10);
         assertThat(top.entries()).hasSize(1);
-        assertThat(top.me()).isNull();
+
+        LeaderboardEntryResponse me = service.me(LeaderboardScope.GLOBAL, stranger);
+        assertThat(me).isNull();
     }
 
     private static PointsAwarded award(UUID userId, int delta, long total) {
