@@ -11,6 +11,8 @@ import com.ecotrace.api.identity.api.UserPointsFacade;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -123,6 +125,61 @@ public class PointsService implements PointsApi {
         events.publishEvent(new PointsAwarded(
                 tx.getId(), reporterUserId, collectionId, wastePointId,
                 delta, newTotal, newLevel, PointsReason.BONUS.name(), OffsetDateTime.now()));
+
+        return new PointsAward(tx.getId(), delta, newTotal, newLevel, false);
+    }
+
+    @Override
+    @Transactional
+    public List<PointsAward> reverseForCollection(UUID collectionId) {
+        List<PointsTransaction> originals = transactions.findByCollectionIdAndReasonIn(
+                collectionId, List.of(PointsReason.COLLECTION, PointsReason.BONUS));
+
+        List<PointsAward> awards = new ArrayList<>();
+        for (PointsTransaction original : originals) {
+            awards.add(reverseSingle(original));
+        }
+        return awards;
+    }
+
+    private PointsAward reverseSingle(PointsTransaction original) {
+        Optional<PointsTransaction> existing =
+                transactions.findFirstByReversesTransactionId(original.getId());
+        if (existing.isPresent()) {
+            PointsTransaction tx = existing.get();
+            long total = users.getTotalPoints(original.getUserId());
+            return new PointsAward(tx.getId(), tx.getDelta(), total,
+                    levelService.compute(total), true);
+        }
+
+        int delta = -original.getDelta();
+
+        PointsTransaction tx = new PointsTransaction();
+        tx.setUserId(original.getUserId());
+        tx.setDelta(delta);
+        tx.setReason(PointsReason.REVERSAL);
+        tx.setCollectionId(original.getCollectionId());
+        tx.setWastePointId(original.getWastePointId());
+        tx.setReversesTransactionId(original.getId());
+        try {
+            tx = transactions.saveAndFlush(tx);
+        } catch (DataIntegrityViolationException e) {
+            PointsTransaction other = transactions
+                    .findFirstByReversesTransactionId(original.getId())
+                    .orElseThrow(() -> e);
+            long total = users.getTotalPoints(original.getUserId());
+            return new PointsAward(other.getId(), other.getDelta(), total,
+                    levelService.compute(total), true);
+        }
+
+        long newTotal = Math.max(0L, users.getTotalPoints(original.getUserId()) + delta);
+        int newLevel = levelService.compute(newTotal);
+        users.setPointsAndLevel(original.getUserId(), newTotal, newLevel);
+
+        events.publishEvent(new PointsAwarded(
+                tx.getId(), original.getUserId(), original.getCollectionId(),
+                original.getWastePointId(),
+                delta, newTotal, newLevel, PointsReason.REVERSAL.name(), OffsetDateTime.now()));
 
         return new PointsAward(tx.getId(), delta, newTotal, newLevel, false);
     }

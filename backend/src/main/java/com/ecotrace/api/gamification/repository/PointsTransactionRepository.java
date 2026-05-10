@@ -15,6 +15,10 @@ public interface PointsTransactionRepository extends JpaRepository<PointsTransac
 
     Optional<PointsTransaction> findFirstByCollectionIdAndReason(UUID collectionId, PointsReason reason);
 
+    List<PointsTransaction> findByCollectionIdAndReasonIn(UUID collectionId, List<PointsReason> reasons);
+
+    Optional<PointsTransaction> findFirstByReversesTransactionId(UUID reversesTransactionId);
+
     @Query("""
             SELECT t FROM PointsTransaction t
             WHERE t.userId = :userId

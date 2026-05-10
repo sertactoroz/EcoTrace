@@ -42,6 +42,15 @@ public class Collection extends BaseEntity {
     @Column(name = "rejected_at")
     private OffsetDateTime rejectedAt;
 
+    @Column(name = "reversed_at")
+    private OffsetDateTime reversedAt;
+
+    @Column(name = "reversed_by_user_id")
+    private UUID reversedByUserId;
+
+    @Column(name = "reversal_reason")
+    private String reversalReason;
+
     @Column(name = "collector_location", columnDefinition = "geography(Point,4326)")
     private Point collectorLocation;
 
@@ -94,6 +103,15 @@ public class Collection extends BaseEntity {
 
     public OffsetDateTime getRejectedAt() { return rejectedAt; }
     public void setRejectedAt(OffsetDateTime rejectedAt) { this.rejectedAt = rejectedAt; }
+
+    public OffsetDateTime getReversedAt() { return reversedAt; }
+    public void setReversedAt(OffsetDateTime reversedAt) { this.reversedAt = reversedAt; }
+
+    public UUID getReversedByUserId() { return reversedByUserId; }
+    public void setReversedByUserId(UUID reversedByUserId) { this.reversedByUserId = reversedByUserId; }
+
+    public String getReversalReason() { return reversalReason; }
+    public void setReversalReason(String reversalReason) { this.reversalReason = reversalReason; }
 
     public Point getCollectorLocation() { return collectorLocation; }
     public void setCollectorLocation(Point collectorLocation) { this.collectorLocation = collectorLocation; }

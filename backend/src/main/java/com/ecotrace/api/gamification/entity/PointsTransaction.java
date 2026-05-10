@@ -37,6 +37,9 @@ public class PointsTransaction {
     @Column(name = "waste_point_id")
     private UUID wastePointId;
 
+    @Column(name = "reverses_transaction_id")
+    private UUID reversesTransactionId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", nullable = false, columnDefinition = "jsonb")
     private String metadata;
@@ -68,6 +71,9 @@ public class PointsTransaction {
 
     public UUID getWastePointId() { return wastePointId; }
     public void setWastePointId(UUID wastePointId) { this.wastePointId = wastePointId; }
+
+    public UUID getReversesTransactionId() { return reversesTransactionId; }
+    public void setReversesTransactionId(UUID reversesTransactionId) { this.reversesTransactionId = reversesTransactionId; }
 
     public String getMetadata() { return metadata; }
     public void setMetadata(String metadata) { this.metadata = metadata; }

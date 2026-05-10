@@ -1,6 +1,7 @@
 package com.ecotrace.api.collection.service;
 
 import com.ecotrace.api.collection.dto.request.RejectCollectionRequest;
+import com.ecotrace.api.collection.dto.request.ReverseCollectionRequest;
 import com.ecotrace.api.collection.dto.request.SubmitCollectionRequest;
 import com.ecotrace.api.collection.dto.response.CollectionResponse;
 import com.ecotrace.api.collection.entity.Collection;
@@ -9,6 +10,7 @@ import com.ecotrace.api.collection.entity.CollectionStatus;
 import com.ecotrace.api.collection.entity.PhotoKind;
 import com.ecotrace.api.collection.event.CollectionClaimed;
 import com.ecotrace.api.collection.event.CollectionRejected;
+import com.ecotrace.api.collection.event.CollectionReversed;
 import com.ecotrace.api.collection.event.CollectionSubmitted;
 import com.ecotrace.api.collection.event.CollectionVerified;
 import com.ecotrace.api.collection.domain.FraudGate;
@@ -214,6 +216,35 @@ public class CollectionService {
         events.publishEvent(new CollectionRejected(
                 c.getId(), c.getWastePointId(), c.getCollectorUserId(),
                 moderatorId, req.reason(), c.getRejectedAt()));
+
+        return toResponse(c, null, evidence.findByCollectionId(collectionId));
+    }
+
+    @Transactional
+    public CollectionResponse reverse(UUID adminId, UUID collectionId, ReverseCollectionRequest req) {
+        Collection c = collections.findById(collectionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND,
+                        "Collection " + collectionId));
+        if (c.getStatus() == CollectionStatus.REVERSED) {
+            return toResponse(c, null, evidence.findByCollectionId(collectionId));
+        }
+        if (c.getStatus() != CollectionStatus.VERIFIED) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Cannot reverse (status=" + c.getStatus() + ")");
+        }
+
+        points.reverseForCollection(c.getId());
+
+        c.setStatus(CollectionStatus.REVERSED);
+        c.setReversedAt(OffsetDateTime.now());
+        c.setReversedByUserId(adminId);
+        c.setReversalReason(req.reason());
+        c.setPointsAwarded(0);
+        c = collections.save(c);
+
+        events.publishEvent(new CollectionReversed(
+                c.getId(), c.getWastePointId(), c.getCollectorUserId(),
+                adminId, req.reason(), c.getReversedAt()));
 
         return toResponse(c, null, evidence.findByCollectionId(collectionId));
     }

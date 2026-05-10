@@ -5,5 +5,6 @@ public enum CollectionStatus {
     SUBMITTED,
     VERIFIED,
     REJECTED,
-    EXPIRED
+    EXPIRED,
+    REVERSED
 }

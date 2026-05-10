@@ -1,6 +1,7 @@
 package com.ecotrace.api.collection.controller;
 
 import com.ecotrace.api.collection.dto.request.RejectCollectionRequest;
+import com.ecotrace.api.collection.dto.request.ReverseCollectionRequest;
 import com.ecotrace.api.collection.dto.request.SubmitCollectionRequest;
 import com.ecotrace.api.collection.dto.response.CollectionResponse;
 import com.ecotrace.api.collection.service.CollectionService;
@@ -57,5 +58,14 @@ public class CollectionController {
             @PathVariable UUID id,
             @Valid @RequestBody RejectCollectionRequest req) {
         return ResponseEntity.ok(service.reject(user.userId(), id, req));
+    }
+
+    @PostMapping("/{id}/reverse")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CollectionResponse> reverse(
+            @CurrentUser AuthenticatedUser user,
+            @PathVariable UUID id,
+            @Valid @RequestBody ReverseCollectionRequest req) {
+        return ResponseEntity.ok(service.reverse(user.userId(), id, req));
     }
 }

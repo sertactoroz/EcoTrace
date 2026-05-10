@@ -16,4 +16,6 @@ public interface PointsApi {
             UUID reporterUserId,
             UUID collectionId,
             UUID wastePointId);
+
+    java.util.List<PointsAward> reverseForCollection(UUID collectionId);
 }
