@@ -82,6 +82,51 @@ public class PointsService implements PointsApi {
         return new PointsAward(tx.getId(), delta, newTotal, newLevel, false);
     }
 
+    @Override
+    @Transactional
+    public PointsAward awardReporterBonus(UUID reporterUserId, UUID collectionId, UUID wastePointId) {
+        Optional<PointsTransaction> existing =
+                transactions.findFirstByCollectionIdAndReason(collectionId, PointsReason.BONUS);
+        if (existing.isPresent()) {
+            PointsTransaction tx = existing.get();
+            long total = users.getTotalPoints(reporterUserId);
+            return new PointsAward(tx.getId(), tx.getDelta(), total, levelService.compute(total), true);
+        }
+
+        int delta = config.points().successfulReportBonus();
+        if (delta == 0) {
+            long total = users.getTotalPoints(reporterUserId);
+            return new PointsAward(null, 0, total, levelService.compute(total), true);
+        }
+
+        PointsTransaction tx = new PointsTransaction();
+        tx.setUserId(reporterUserId);
+        tx.setDelta(delta);
+        tx.setReason(PointsReason.BONUS);
+        tx.setCollectionId(collectionId);
+        tx.setWastePointId(wastePointId);
+        try {
+            tx = transactions.saveAndFlush(tx);
+        } catch (DataIntegrityViolationException e) {
+            PointsTransaction other = transactions
+                    .findFirstByCollectionIdAndReason(collectionId, PointsReason.BONUS)
+                    .orElseThrow(() -> e);
+            long total = users.getTotalPoints(reporterUserId);
+            return new PointsAward(other.getId(), other.getDelta(), total,
+                    levelService.compute(total), true);
+        }
+
+        long newTotal = users.getTotalPoints(reporterUserId) + delta;
+        int newLevel = levelService.compute(newTotal);
+        users.setPointsAndLevel(reporterUserId, newTotal, newLevel);
+
+        events.publishEvent(new PointsAwarded(
+                tx.getId(), reporterUserId, collectionId, wastePointId,
+                delta, newTotal, newLevel, PointsReason.BONUS.name(), OffsetDateTime.now()));
+
+        return new PointsAward(tx.getId(), delta, newTotal, newLevel, false);
+    }
+
     private int computeDelta(BigDecimal categoryMultiplier, String volumeKey) {
         BigDecimal volumeMultiplier = volumeMultiplier(volumeKey);
         BigDecimal base = BigDecimal.valueOf(config.points().baseCollection());

@@ -133,7 +133,8 @@ public class WastePointService implements WastePointFacade {
         return new PinPointsContext(
                 cat.getCode(),
                 cat.getPointsMultiplier(),
-                wp.getEstimatedVolume() == null ? null : wp.getEstimatedVolume().name());
+                wp.getEstimatedVolume() == null ? null : wp.getEstimatedVolume().name(),
+                wp.getReportedByUserId());
     }
 
     @Override

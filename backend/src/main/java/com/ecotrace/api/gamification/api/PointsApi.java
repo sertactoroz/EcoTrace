@@ -11,4 +11,9 @@ public interface PointsApi {
             UUID wastePointId,
             BigDecimal categoryMultiplier,
             String volumeKey);
+
+    PointsAward awardReporterBonus(
+            UUID reporterUserId,
+            UUID collectionId,
+            UUID wastePointId);
 }

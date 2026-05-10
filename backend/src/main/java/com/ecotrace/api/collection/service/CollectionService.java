@@ -143,6 +143,11 @@ public class CollectionService {
                 c.getCollectorUserId(), c.getId(), c.getWastePointId(),
                 ctx.categoryMultiplier(), ctx.volumeKey());
 
+        UUID reporter = ctx.reportedByUserId();
+        if (reporter != null && !reporter.equals(c.getCollectorUserId())) {
+            points.awardReporterBonus(reporter, c.getId(), c.getWastePointId());
+        }
+
         c.setStatus(CollectionStatus.VERIFIED);
         c.setVerifiedAt(OffsetDateTime.now());
         c.setReviewedByUserId(moderatorId);
