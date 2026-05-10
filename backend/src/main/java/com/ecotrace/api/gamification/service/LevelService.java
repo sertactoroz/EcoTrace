@@ -37,4 +37,39 @@ public class LevelService {
         }
         return current;
     }
+
+    public LevelSnapshot describe(long totalPoints) {
+        List<Level> all = snapshot.get();
+        Level current = null;
+        Level next = null;
+        for (Level l : all) {
+            if (totalPoints >= l.getMinPoints()) {
+                current = l;
+            } else {
+                next = l;
+                break;
+            }
+        }
+        if (current == null) {
+            // No levels seeded — degenerate case; report level 1 with no thresholds.
+            return new LevelSnapshot(1, "Beginner", 0, null, null, totalPoints);
+        }
+        Integer nextMin = next == null ? null : next.getMinPoints();
+        Long pointsToNext = next == null ? null : Math.max(0L, next.getMinPoints() - totalPoints);
+        return new LevelSnapshot(
+                current.getLevel(),
+                current.getName(),
+                current.getMinPoints(),
+                nextMin,
+                pointsToNext,
+                totalPoints);
+    }
+
+    public record LevelSnapshot(
+            int level,
+            String name,
+            int currentMinPoints,
+            Integer nextLevelMinPoints,
+            Long pointsToNextLevel,
+            long totalPoints) {}
 }

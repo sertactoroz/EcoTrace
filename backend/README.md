@@ -41,6 +41,9 @@ The API is at `http://localhost:8080`.
 | `POST /collections/{id}/verify` | Verify a submitted collection — awards points + flips the pin to `VERIFIED` (idempotent on the ledger). **Moderator only.** |
 | `POST /collections/{id}/reject` | Reject a submitted collection — releases the pin back to `ACTIVE`. **Moderator only.** |
 | `GET /leaderboard?scope=GLOBAL\|WEEKLY\|MONTHLY&limit=20` | Top-N leaderboard from Redis sorted sets, plus the viewer's own rank |
+| `GET /me` | Current user profile + roles |
+| `GET /me/level` | Current level + next-level threshold + points-to-next |
+| `GET /me/points/transactions?limit=&cursor=` | Paginated ledger history (cursor-based) |
 | `GET /me/stream` | SSE stream of user-scoped events (`points.awarded`, `collection.verified`, `collection.rejected`) |
 | `GET /admin/users?email=…` | Look up a user + their roles. **Admin only.** |
 | `POST /admin/users/{id}/roles` | Grant a role (`MODERATOR`); ADMIN cannot be granted via API. **Admin only.** |
